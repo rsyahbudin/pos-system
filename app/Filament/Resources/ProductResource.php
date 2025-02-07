@@ -49,6 +49,7 @@ class ProductResource extends Resource implements HasShieldPermissions
             ->schema([
                 Forms\Components\TextInput::make('name')
                     ->label('Nama Produk')
+                    ->required()
                     ->afterStateUpdated(function (Set $set, $state) {
                         $set('slug', Product::generateUniqueSlug($state));
                     })
@@ -59,7 +60,6 @@ class ProductResource extends Resource implements HasShieldPermissions
                     ->label('Kategori Produk')
                     ->relationship('category', 'name'),
                 Forms\Components\TextInput::make('slug')
-                    ->required()
                     ->readOnly()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('stock')
@@ -81,7 +81,8 @@ class ProductResource extends Resource implements HasShieldPermissions
                     ->maxSize(1024), // tambahi ini kalau teman2 ingin menambahkan maximum ukuran gambarnya dengan hitungan kilobyte(kb
                 Forms\Components\TextInput::make('barcode')
                     ->label('Barcode Produk')
-                    ->maxLength(255),
+                    ->readOnly() // Supaya tidak bisa diubah manual
+                    ->default(fn($get) => Product::generateUniqueBarcode($get('category_id'))), // Ambil category_id dari form
                 Forms\Components\Textarea::make('description')
                     ->label('Deskripsi Produk')
                     ->columnSpanFull(),

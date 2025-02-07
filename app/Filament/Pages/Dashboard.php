@@ -16,10 +16,10 @@ class Dashboard extends BaseDashboard
 {
     use HasPageShield;
     protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
-    
+
     use BaseDashboard\Concerns\HasFiltersForm;
-    
-    
+
+
 
     public function filtersForm(Form $form): Form
     {
@@ -29,16 +29,15 @@ class Dashboard extends BaseDashboard
                     ->schema([
                         DatePicker::make('startDate')
                             ->label('Dari Tanggal')
-                            ->maxDate(fn (Get $get) => $get('endDate') ?: now()),
+                            ->default(now())
+                            ->maxDate(fn(Get $get) => $get('endDate') ?: now()),
                         DatePicker::make('endDate')
                             ->label('Sampai Tanggal')
-                            ->minDate(fn (Get $get) => $get('startDate') ?: now())
+                            ->default(now())
+                            ->minDate(fn(Get $get) => $get('startDate') ?: now())
                             ->maxDate(now()),
                     ])
                     ->columns(2),
             ]);
     }
-
-   
-
 }

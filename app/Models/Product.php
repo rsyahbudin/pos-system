@@ -60,4 +60,20 @@ class Product extends Model
     {
         return $this->hasMany(OrderProduct::class);
     }
+
+    public static function generateUniqueBarcode($category_id)
+    {
+        do {
+            // Acak 6 angka
+            $random_number = mt_rand(100000, 999999);
+
+            // Gabungkan dengan category_id (misal: 2 -> 200123456)
+            $barcode = str_pad($category_id . $random_number, 8, '0', STR_PAD_LEFT);
+
+            // Cek di database apakah sudah ada
+            $exists = self::where('barcode', $barcode)->exists();
+        } while ($exists); // Jika sudah ada, ulangi
+
+        return $barcode;
+    }
 }
