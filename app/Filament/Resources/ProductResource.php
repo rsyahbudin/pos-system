@@ -14,7 +14,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Set;
 use App\Filament\Clusters\Products;
+use App\Filament\Exports\OrderExporter;
+use App\Filament\Exports\ProductExporter;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
+use Filament\Tables\Actions\ExportBulkAction;
 
 class ProductResource extends Resource implements HasShieldPermissions
 {
@@ -137,6 +140,7 @@ class ProductResource extends Resource implements HasShieldPermissions
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    ExportBulkAction::make()->exporter(ProductExporter::class),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
