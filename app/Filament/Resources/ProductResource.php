@@ -16,8 +16,17 @@ use Filament\Forms\Set;
 use App\Filament\Clusters\Products;
 use App\Filament\Exports\OrderExporter;
 use App\Filament\Exports\ProductExporter;
+use App\Models\Setting;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
+use Filament\Forms\Components\Actions;
+use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ExportBulkAction;
+use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
+use Mike42\Escpos\Printer;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\ExportAction;
+
+
 
 class ProductResource extends Resource implements HasShieldPermissions
 {
@@ -137,6 +146,54 @@ class ProductResource extends Resource implements HasShieldPermissions
                 //
             ])
             ->actions([
+                Action::make('PrintBarcode')
+                // Action::make('Print')
+                    ->label('Cetak Barcode')
+                    ->action(function (Product $record) {
+                        try {
+                            $product = Product::findOrFail($record->id); // Ambil data produk
+                            $setting = Setting::first(); // Ambil setting printer
+
+                            // Pastikan barcode ada dan 8 digit
+                            if (!$product->barcode || strlen($product->barcode) != 8 || !is_numeric($product->barcode)) {
+                                Notification::make()
+                                    ->title('Barcode tidak valid (harus 8 digit angka)')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            // Sambungkan ke printer
+                            $connector = new WindowsPrintConnector($setting->name_printer);
+                            $printer = new Printer($connector);
+
+                            // Cetak nama produk
+                            $printer->setJustification(Printer::JUSTIFY_CENTER);
+                            $printer->text($product->name . "\n");
+                            $printer->text("Rp " . number_format($product->price, 0, ',', '.') . "\n");
+
+                            // Cetak barcode (EAN-8)
+                            $printer->barcode($product->barcode, Printer::BARCODE_CODE39);
+                            $printer->text("\n");
+
+                            // Potong kertas dan tutup koneksi printer
+                            $printer->cut();
+                            $printer->close();
+
+                            Notification::make()
+                                ->title('Barcode berhasil dicetak')
+                                ->success()
+                                ->icon('heroicon-o-printer')
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Gagal mencetak barcode: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->icon('heroicon-o-printer')
+                    ->color('blue'),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
