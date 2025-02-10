@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\Category;
 use Livewire\Component;
 use App\Models\Product;
 use App\Models\PaymentMethod;
@@ -40,6 +41,7 @@ class Pos extends Component implements HasForms
     public $total_price;
     public $showConfirmationModal = false;
     public $orderToPrint = null;
+    public $selectedCategory = null;
 
     protected $listeners = [
         'scanResult' => 'handleScanResult',
@@ -48,48 +50,51 @@ class Pos extends Component implements HasForms
     public function updatedBarcode($barcode)
     {
 
-            $product = Product::where('barcode', $barcode)->first();
-            // dd($product);
-            if ($product) {
-                if ($product->stock <= 0) {
-                    Notification::make()
-                        ->title('Stok habis')
-                        ->danger()
-                        ->send();
-                    return;
-                }
-
-                $existingItemKey = null;
-                foreach($this->order_items as $key => $item) {
-                    if ($item['product_id'] == $product->id) {
-                        $existingItemKey = $key;
-                        break;
-                    }
-                }
-
-                if ($existingItemKey !== null) {
-                    $this->order_items[$existingItemKey]['quantity']++;
-                } else {
-                    $this->order_items[] = [
-                        'product_id' => $product->id,
-                        'name' => $product->name,
-                        'price' => $product->price,
-                        'image_url' => $product->image_url,
-                        'quantity' => 1,
-                    ];
-                }
-
-                session()->put('orderItems', $this->order_items);
-                        $this->barcode = '';
-
+        $product = Product::where('barcode', $barcode)->first();
+        // dd($product);
+        if ($product) {
+            if ($product->stock <= 0) {
+                Notification::make()
+                    ->title('Stok habis')
+                    ->danger()
+                    ->send();
+                return;
             }
+
+            $existingItemKey = null;
+            foreach ($this->order_items as $key => $item) {
+                if ($item['product_id'] == $product->id) {
+                    $existingItemKey = $key;
+                    break;
+                }
+            }
+
+            if ($existingItemKey !== null) {
+                $this->order_items[$existingItemKey]['quantity']++;
+            } else {
+                $this->order_items[] = [
+                    'product_id' => $product->id,
+                    'name' => $product->name,
+                    'price' => $product->price,
+                    'image_url' => $product->image_url,
+                    'quantity' => 1,
+                ];
+            }
+
+            session()->put('orderItems', $this->order_items);
+            $this->barcode = '';
+        }
     }
     public function render()
     {
         return view('livewire.pos', [
             'products' => Product::where('stock', '>', 0)
-                            ->search($this->search)
-                            ->paginate(15)
+                ->when($this->selectedCategory, function ($query) {
+                    $query->where('category_id', $this->selectedCategory);
+                })
+                ->search($this->search)
+                ->paginate(15),
+            'categories' => Category::all() // <-- Tambahkan data kategori
         ]);
     }
 
@@ -102,7 +107,7 @@ class Pos extends Component implements HasForms
                         // Input Name Customer
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->default(fn () => $this->name)
+                            ->default(fn() => $this->name)
                             ->label('Name Customer')
                             ->nullable()
                             ->maxLength(255)
@@ -113,7 +118,7 @@ class Pos extends Component implements HasForms
                             ->label('Total Harga')
                             ->readOnly()
                             ->numeric()
-                            ->default(fn () => $this->total_price)
+                            ->default(fn() => $this->total_price)
                             ->columnSpan(1), // Menggunakan 1 kolom
 
                         // Input Payment Method
@@ -152,7 +157,7 @@ class Pos extends Component implements HasForms
             }
 
             $existingItemKey = null;
-            foreach($this->order_items as $key => $item) {
+            foreach ($this->order_items as $key => $item) {
                 if ($item['product_id'] == $productId) {
                     $existingItemKey = $key;
                     break;
@@ -172,7 +177,6 @@ class Pos extends Component implements HasForms
             }
 
             session()->put('orderItems', $this->order_items);
-
         }
     }
 
@@ -194,15 +198,15 @@ class Pos extends Component implements HasForms
             return;
         }
 
-        foreach($this->order_items as $key => $item) {
+        foreach ($this->order_items as $key => $item) {
             if ($item['product_id'] == $product_id) {
                 if ($item['quantity'] + 1 <= $product->stock) {
                     $this->order_items[$key]['quantity']++;
                 } else {
                     Notification::make()
-                    ->title('Stok barang tidak mencukupi')
-                    ->danger()
-                    ->send();
+                        ->title('Stok barang tidak mencukupi')
+                        ->danger()
+                        ->send();
                 }
                 break;
             }
@@ -213,7 +217,7 @@ class Pos extends Component implements HasForms
 
     public function decreaseQuantity($product_id)
     {
-        foreach($this->order_items as $key => $item) {
+        foreach ($this->order_items as $key => $item) {
             if ($item['product_id'] == $product_id) {
                 if ($this->order_items[$key]['quantity'] > 1) {
                     $this->order_items[$key]['quantity']--;
@@ -230,7 +234,7 @@ class Pos extends Component implements HasForms
     public function calculateTotal()
     {
         $total = 0;
-        foreach($this->order_items as $item) {
+        foreach ($this->order_items as $item) {
             $total += $item['quantity'] * $item['price'];
         }
         $this->total_price = $total;
@@ -247,8 +251,6 @@ class Pos extends Component implements HasForms
         $this->order_items = [];
         $this->payment_method_id = null;
         $this->total_price = 0;
-
-
     }
 
 
@@ -268,7 +270,7 @@ class Pos extends Component implements HasForms
             'payment_method_id' => $payment_method_id_temp
         ]);
 
-        foreach($this->order_items as $item) {
+        foreach ($this->order_items as $item) {
             OrderProduct::create([
                 'order_id' => $order->id,
                 'product_id' => $item['product_id'],
@@ -277,23 +279,22 @@ class Pos extends Component implements HasForms
             ]);
         }
 
-         // Simpan ID order untuk cetak
+        // Simpan ID order untuk cetak
         $this->orderToPrint = $order->id;
 
         // Tampilkan modal konfirmasi
         $this->showConfirmationModal = true;
 
         Notification::make()
-        ->title('Order berhasil disimpan')
-        ->success()
-        ->send();
+            ->title('Order berhasil disimpan')
+            ->success()
+            ->send();
 
         $this->name = '';
         $this->payment_method_id = null;
         $this->total_price = 0;
         $this->order_items = [];
         session()->forget(['orderItems']);
-
     }
 
     public function handleScanResult($decodedText)
@@ -304,7 +305,7 @@ class Pos extends Component implements HasForms
             $this->addToOrder($product->id);
         } else {
             Notification::make()
-                ->title('Product not found '.$decodedText)
+                ->title('Product not found ' . $decodedText)
                 ->danger()
                 ->send();
         }
@@ -326,14 +327,15 @@ class Pos extends Component implements HasForms
 
             // Muat gambar logo
 
-            $logo = EscposImage::load(public_path('storage/'. $setting->image), true);
+            $logo = EscposImage::load(public_path('storage/' . $setting->image), true);
 
 
-              // Lebar kertas (58mm: 32 karakter, 80mm: 48 karakter)
+            // Lebar kertas (58mm: 32 karakter, 80mm: 48 karakter)
             $lineWidth = 32;
 
             // Fungsi untuk merapikan teks
-            function formatRow($name, $qty, $price, $lineWidth) {
+            function formatRow($name, $qty, $price, $lineWidth)
+            {
                 $nameWidth = 16; // Alokasi 16 karakter untuk nama produk
                 $qtyWidth = 8;   // Alokasi 8 karakter untuk Qty
                 $priceWidth = 8; // Alokasi 8 karakter untuk Harga
@@ -371,11 +373,12 @@ class Pos extends Component implements HasForms
             $printer->setTextSize(1, 1);
             $printer->setEmphasis(false); // Tebal
             $printer->text($setting->address . "\n");
-            $printer->text($setting->phone ."\n");
+            $printer->text($setting->phone . "\n");
             $printer->text("================================\n");
 
             // Detail Transaksi
-            $printer->setJustification(Printer::JUSTIFY_LEFT); if ($order->name) {
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+            if ($order->name) {
                 $printer->text("Nama: " . $order->name . "\n");
             }
             if ($order->paymentMethod->is_cash) {
@@ -388,18 +391,18 @@ class Pos extends Component implements HasForms
             $printer->text(formatRow("Nama Barang", "Qty", "Harga", $lineWidth) . "\n");
             $printer->text("--------------------------------\n");
             foreach ($order_items as $item) {
-                $product = Product::find( $item->product_id);
-                $printer->text(formatRow($product->name ,$item->quantity , number_format($item->unit_price), $lineWidth) . "\n");
+                $product = Product::find($item->product_id);
+                $printer->text(formatRow($product->name, $item->quantity, number_format($item->unit_price), $lineWidth) . "\n");
             }
 
             $printer->text("--------------------------------\n");
 
             $total = 0;
-            foreach($order_items as $item) {
+            foreach ($order_items as $item) {
                 $total += $item->quantity * $item->unit_price;
             }
             $printer->setEmphasis(true); // Tebal
-            $printer->text(formatRow("Total","",number_format($total), $lineWidth) . "\n");
+            $printer->text(formatRow("Total", "", number_format($total), $lineWidth) . "\n");
             $printer->setEmphasis(false); // Tebal
 
             // Footer Struk
@@ -411,15 +414,15 @@ class Pos extends Component implements HasForms
             $printer->cut();
             $printer->close();
             Notification::make()
-            ->title('Struk berhasil dicetak')
-            ->success()
-            ->send();
+                ->title('Struk berhasil dicetak')
+                ->success()
+                ->send();
         } catch (\Exception $e) {
             Notification::make()
-            ->title('Printer tidak terdaftar')
-            ->icon('heroicon-o-printer')
-            ->danger()
-            ->send();
+                ->title('Printer tidak terdaftar')
+                ->icon('heroicon-o-printer')
+                ->danger()
+                ->send();
         }
 
         $this->showConfirmationModal = false;
@@ -431,7 +434,5 @@ class Pos extends Component implements HasForms
         $order = Order::findOrFail($this->orderToPrint);
 
         redirect(route('struk', $order->id));
-        
     }
-
 }

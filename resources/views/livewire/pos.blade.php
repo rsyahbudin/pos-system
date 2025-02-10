@@ -1,26 +1,33 @@
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="font-family : poppins;">
     <div class="md:col-span-2 bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-         <form wire:submit="checkout">
+        <form wire:submit="checkout">
             {{$this->form}}
             <x-filament::button
                 type="submit"
                 class="w-full h-12 bg-primary mt-6 text-white py-2 rounded-lg">Checkout</x-filament::button>
-            </form>
-            <div class="flex items-center justify-between my-10">
-                <input wire:model.live.debounce.300ms='search' type="text" placeholder="Cari produk ..."
+        </form>
+        <div class="flex items-center justify-between my-10">
+            <input wire:model.live.debounce.300ms='search' type="text" placeholder="Cari produk ..."
                 class="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-                <input wire:model.live='barcode' type="text" placeholder="Scan dengan alat scanner ..." autofocus id="barcode"
+            <input wire:model.live='barcode' type="text" placeholder="Scan dengan alat scanner ..." autofocus id="barcode"
                 class="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white ml-2">
-                <x-filament::button x-data="" x-on:click="$dispatch('toggle-scanner')" class="px-2 w-20 h-12 bg-primary text-white rounded-lg ml-2"><i class="fa fa-barcode"  style="font-size:36px"></i>
-                </x-filament::button>
-                <livewire:scanner-modal-component>
-            </div>
+            <x-filament::button x-data="" x-on:click="$dispatch('toggle-scanner')" class="px-2 w-20 h-12 bg-primary text-white rounded-lg ml-2"><i class="fa fa-barcode" style="font-size:36px"></i>
+            </x-filament::button>
+            <livewire:scanner-modal-component>
+        </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                @foreach($products as $item)
+        <x-filament::input.select wire:model.live="selectedCategory" class="mb-4 w-1/3 p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+            <option value="">Semua Kategori</option>
+            @foreach($categories as $category)
+            <option value="{{ $category->id }}">{{ $category->name }}</option>
+            @endforeach
+        </x-filament::input.select>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            @foreach($products as $item)
             <div wire:click="addToOrder({{$item->id}})" class="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg shadow cursor-pointer">
                 <img src="{{$item->image_url}}"
-                alt="Product Image" class="w-full h-24 object-cover rounded-lg mb-2">
+                    alt="Product Image" class="w-full h-24 object-cover rounded-lg mb-2">
                 <h3 class="text-sm font-semibold text-center">{{$item->name}}</h3>
                 {{-- <p class="text-gray-600 dark:text-gray-400 text-sm">Rp. {{number_format($item->price, 0, ',', '.')}}</p>
                 <p class="text-gray-600 dark:text-gray-400 text-sm">Stok: {{$item->stock}}</p> --}}
@@ -41,7 +48,7 @@
             <div class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow">
                 <div class="flex items-center">
                     <img src="{{$item['image_url']}}" alt="Product Image"
-                    class="w-10 h-10 object-cover rounded-lg mr-2">
+                        class="w-10 h-10 object-cover rounded-lg mr-2">
                     <div class="px-2">
                         <h3 class="text-sm font-semibold">{{$item['name']}}</h3>
                         <p class="text-gray-600 dark:text-gray-400 text-xs">Rp {{number_format($item['price'], 0, ',', '.')}}</p>
@@ -72,7 +79,7 @@
             <div class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow">
                 <div class="flex items-center">
                     <img src="{{$item['image_url']}}" alt="Product Image"
-                    class="w-10 h-10 object-cover rounded-lg mr-2">
+                        class="w-10 h-10 object-cover rounded-lg mr-2">
                     <div class="px-2">
                         <h3 class="text-sm font-semibold">{{$item['name']}}</h3>
                         <p class="text-gray-600 dark:text-gray-400 text-xs">Rp {{number_format($item['price'], 0, ',', '.')}}</p>
@@ -130,7 +137,7 @@
                         class="px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-blue-600 focus:ring-2 focus:ring-blue-400">
                         Cetak
                     </button>
-                   
+
                     @endif
                 </div>
             </div>
@@ -138,4 +145,3 @@
         @endif
     </div>
 </div>
-

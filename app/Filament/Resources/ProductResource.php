@@ -112,6 +112,7 @@ class ProductResource extends Resource implements HasShieldPermissions
                     ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Harga')
+                    ->numeric()
                     ->sortable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Produk Aktif')
