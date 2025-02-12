@@ -14,7 +14,7 @@
         }
 
         .receipt {
-            auto;
+            /* auto; */
             background: #fff;
         }
 
