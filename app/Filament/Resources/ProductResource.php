@@ -19,6 +19,7 @@ use App\Filament\Exports\ProductExporter;
 use App\Models\Setting;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Forms\Components\Actions;
+use Filament\Notifications\Collection;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ExportBulkAction;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
@@ -149,7 +150,7 @@ class ProductResource extends Resource implements HasShieldPermissions
                     ->label('Cetak Barcode')
                     ->modalHeading('Preview Barcode')
                     ->modalSubheading('Klik "Cetak" untuk mencetak barcode ini.')
-                    ->modalContent(fn (Product $record) => view('filament.modals.barcode-preview', [
+                    ->modalContent(fn(Product $record) => view('filament.modals.barcode-preview', [
                         'product' => $record,
                         'barcodeImage' => base64_encode(
                             (new BarcodeGeneratorPNG())->getBarcode($record->barcode, BarcodeGeneratorPNG::TYPE_CODE_128)
@@ -160,7 +161,7 @@ class ProductResource extends Resource implements HasShieldPermissions
                         try {
                             $product = Product::findOrFail($record->id);
                             $setting = Setting::first();
-            
+
                             if (!$product->barcode || strlen($product->barcode) != 8 || !is_numeric($product->barcode)) {
                                 Notification::make()
                                     ->title('Barcode tidak valid (harus 8 digit angka)')
@@ -168,22 +169,22 @@ class ProductResource extends Resource implements HasShieldPermissions
                                     ->send();
                                 return;
                             }
-            
+
                             $connector = new WindowsPrintConnector($setting->name_printer);
                             $printer = new Printer($connector);
-            
+
                             // Cetak Nama & Harga Produk
                             $printer->setJustification(Printer::JUSTIFY_CENTER);
                             $printer->text($product->name . "\n");
                             $printer->text("Rp " . number_format($product->price, 0, ',', '.') . "\n");
-            
+
                             // Cetak Barcode EAN-8
                             $printer->barcode($product->barcode, Printer::BARCODE_CODE128);
                             $printer->text("\n");
-            
+
                             $printer->cut();
                             $printer->close();
-            
+
                             Notification::make()
                                 ->title('Barcode berhasil dicetak')
                                 ->success()
@@ -198,9 +199,9 @@ class ProductResource extends Resource implements HasShieldPermissions
                     })
                     ->icon('heroicon-o-printer')
                     ->color('blue'),
-            
+
                 Tables\Actions\EditAction::make(),
-            ])            
+            ])
             // ->actions([
             //     Action::make('PrintBarcode')
             //         ->label('Cetak Barcode')
@@ -249,13 +250,54 @@ class ProductResource extends Resource implements HasShieldPermissions
             //         })
             //         ->icon('heroicon-o-printer')
             //         ->color('blue'),
-                           
+
             //     Tables\Actions\EditAction::make(),
             // ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     ExportBulkAction::make()->exporter(ProductExporter::class),
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('PrintBulkBarcode')
+                        ->label('Cetak Barcode Massal')
+                        ->icon('heroicon-o-printer')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records) {
+                            try {
+                                $setting = Setting::first();
+                                $connector = new WindowsPrintConnector($setting->name_printer);
+                                $printer = new Printer($connector);
+
+                                foreach ($records as $product) {
+                                    if (!$product->barcode || strlen($product->barcode) != 8 || !is_numeric($product->barcode)) {
+                                        continue; // Lewati jika barcode tidak valid
+                                    }
+
+                                    // Cetak Nama & Harga Produk
+                                    $printer->setJustification(Printer::JUSTIFY_CENTER);
+                                    $printer->text($product->name . "\n");
+                                    $printer->text("Rp " . number_format($product->price, 0, ',', '.') . "\n");
+
+                                    // Cetak Barcode EAN-8
+                                    $printer->barcode($product->barcode, Printer::BARCODE_CODE128);
+                                    $printer->text("\n");
+                                    $printer->feed(2); // Spasi antar barcode
+                                }
+
+                                $printer->cut();
+                                $printer->close();
+
+                                Notification::make()
+                                    ->title('Berhasil mencetak barcode massal')
+                                    ->success()
+                                    ->icon('heroicon-o-printer')
+                                    ->send();
+                            } catch (\Exception $e) {
+                                Notification::make()
+                                    ->title('Gagal mencetak barcode: ' . $e->getMessage())
+                                    ->danger()
+                                    ->send();
+                            }
+                        }),
                 ]),
             ]);
     }

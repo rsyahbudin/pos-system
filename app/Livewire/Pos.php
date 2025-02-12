@@ -42,6 +42,10 @@ class Pos extends Component implements HasForms
     public $showConfirmationModal = false;
     public $orderToPrint = null;
     public $selectedCategory = null;
+    public $amount_received = 0; // Untuk menyimpan jumlah uang yang diterima
+    public $change = 0;          // Untuk menyimpan uang kembalian
+    public $showChangeModal = false; // Untuk mengontrol tampilan modal
+    public $isChangeCalculated = false; // Untuk melacak apakah uang kembalian sudah dihitung
 
     protected $listeners = [
         'scanResult' => 'handleScanResult',
@@ -255,6 +259,47 @@ class Pos extends Component implements HasForms
 
 
 
+    // public function checkout()
+    // {
+    //     $this->validate([
+    //         'name' => 'string|max:255',
+    //         'payment_method_id' => 'required'
+    //     ]);
+
+    //     $payment_method_id_temp = $this->payment_method_id;
+
+    //     $order = Order::create([
+    //         'name' => $this->name,
+    //         'total_price' => $this->calculateTotal(),
+    //         'payment_method_id' => $payment_method_id_temp
+    //     ]);
+
+    //     foreach ($this->order_items as $item) {
+    //         OrderProduct::create([
+    //             'order_id' => $order->id,
+    //             'product_id' => $item['product_id'],
+    //             'quantity' => $item['quantity'],
+    //             'unit_price' => $item['price']
+    //         ]);
+    //     }
+
+    //     // Simpan ID order untuk cetak
+    //     $this->orderToPrint = $order->id;
+
+    //     // Tampilkan modal konfirmasi
+    //     $this->showConfirmationModal = true;
+
+    //     Notification::make()
+    //         ->title('Order berhasil disimpan')
+    //         ->success()
+    //         ->send();
+
+    //     $this->name = '';
+    //     $this->payment_method_id = null;
+    //     $this->total_price = 0;
+    //     $this->order_items = [];
+    //     session()->forget(['orderItems']);
+    // }
     public function checkout()
     {
         $this->validate([
@@ -262,12 +307,46 @@ class Pos extends Component implements HasForms
             'payment_method_id' => 'required'
         ]);
 
-        $payment_method_id_temp = $this->payment_method_id;
+        // Periksa apakah ada item di keranjang
+        if (empty($this->order_items)) {
+            Notification::make()
+                ->title('Keranjang kosong! Tidak ada item untuk checkout.')
+                ->danger()
+                ->send();
+            return;
+        }
 
+        $payment_method = PaymentMethod::find($this->payment_method_id);
+
+        if ($payment_method->is_cash) {
+            // Jika metode pembayaran adalah cash, tampilkan modal
+            $this->showChangeModal = true;
+        } else {
+            // Jika bukan cash, langsung proses pembayaran
+            $this->processPayment();
+        }
+    }
+
+    public function processPayment()
+    {
+        $total = $this->calculateTotal();
+
+        if ($this->amount_received < $total) {
+            Notification::make()
+                ->title('Jumlah uang yang diterima kurang!')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        // Hitung uang kembalian
+        $this->change = $this->amount_received - $total;
+
+        // Simpan order
         $order = Order::create([
             'name' => $this->name,
-            'total_price' => $this->calculateTotal(),
-            'payment_method_id' => $payment_method_id_temp
+            'total_price' => $total,
+            'payment_method_id' => $this->payment_method_id
         ]);
 
         foreach ($this->order_items as $item) {
@@ -282,8 +361,11 @@ class Pos extends Component implements HasForms
         // Simpan ID order untuk cetak
         $this->orderToPrint = $order->id;
 
-        // Tampilkan modal konfirmasi
-        $this->showConfirmationModal = true;
+        // Cetak struk
+        $this->confirmPrint1();
+
+        // Ubah status untuk tombol
+        $this->isChangeCalculated = true;
 
         Notification::make()
             ->title('Order berhasil disimpan')
@@ -296,6 +378,17 @@ class Pos extends Component implements HasForms
         $this->order_items = [];
         session()->forget(['orderItems']);
     }
+
+    public function updatedShowChangeModal($value)
+    {
+        if (!$value) {
+            // Reset status ketika modal ditutup
+            $this->isChangeCalculated = false;
+            $this->amount_received = 0;
+            $this->change = 0;
+        }
+    }
+
 
     public function handleScanResult($decodedText)
     {

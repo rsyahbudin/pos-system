@@ -6,6 +6,50 @@
                 type="submit"
                 class="w-full h-12 bg-primary mt-6 text-white py-2 rounded-lg">Checkout</x-filament::button>
         </form>
+        <!-- Modal untuk Input Uang Diterima -->
+        <div x-data="{ showModal: @entangle('showChangeModal') }" x-show="showModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <!-- Tombol Close -->
+                <button @click="showModal = false" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <h3 class="text-lg font-bold mb-4">Masukkan Uang yang Diterima</h3>
+                <form wire:submit.prevent="processPayment">
+                    <div class="mb-4">
+                        <label for="amount_received" class="block text-sm font-medium text-gray-700">Uang Diterima</label>
+                        <input type="number" id="amount_received" wire:model="amount_received" class="text-gray-900 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required>
+                    </div>
+
+                    <!-- Tampilkan Uang Kembalian Setelah Proses -->
+                    @if ($change > 0)
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Uang Kembalian</label>
+                        <p class="text-xl font-bold text-green-600">
+                            Rp {{ number_format($change) }}
+                        </p>
+                    </div>
+                    @endif
+
+                    <div class="flex justify-end">
+                        @if ($isChangeCalculated)
+                        <!-- Tombol Close -->
+                        <button type="button" @click="showModal = false" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                            Close
+                        </button>
+                        @else
+                        <!-- Tombol Proses -->
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            Proses
+                        </button>
+                        @endif
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="flex items-center justify-between my-10">
             <input wire:model.live.debounce.300ms='search' type="text" placeholder="Cari produk ..."
                 class="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
