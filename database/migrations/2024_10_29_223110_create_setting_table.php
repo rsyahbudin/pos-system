@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('phone');
             $table->string('name_printer');
             $table->string('image')->nullable();
-            $table->boolean('print_via_mobile')->default('false');
+            $table->tinyInteger('print_via_mobile')->default(0);
             $table->timestamps();
         });
     }
